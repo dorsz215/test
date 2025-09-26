@@ -1,3 +1,4 @@
+wait("0.2")
 -- Wstaw do StarterPlayerScripts
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
