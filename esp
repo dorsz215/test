@@ -1,34 +1,100 @@
 wait("0.2")
--- Wstaw do StarterPlayerScripts
+game.StarterPlayer.StarterPlayerScripts
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
+local User = Players.LocalPlayer
+local UIS = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
 
-local function highlightCharacter(character)
-    -- sprawdz czy już nie ma highlightu
-    if character:FindFirstChild("ESPHighlight") then return end
+local enabled = false
+local highlights = {} -- map player -> Highlight
 
-    local highlight = Instance.new("Highlight")
-    highlight.Name = "ESPHighlight"
-    highlight.FillColor = Color3.fromRGB(0, 255, 0) -- zielony
-    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-    highlight.FillTransparency = 0.5
-    highlight.Adornee = character
-    highlight.Parent = character
+local function createHighlightForCharacter(character)
+	if not character or not character:IsA("Model") then return nil end
+	-- Jeśli już jest highlight, usuń go (odśwież)
+	local existing = character:FindFirstChild("ESP_Highlight")
+	if existing then existing:Destroy() end
+
+	local h = Instance.new("Highlight")
+	h.Name = "ESP_Highlight"
+	h.Adornee = character
+	h.FillTransparency = 0.8        -- mniej/mocniej wypełnienie: 0 = pełne, 1 = niewidoczne
+	h.OutlineTransparency = 0      -- 0 = pełny obrys
+	h.OutlineColor = Color3.fromRGB(255, 0, 0) -- obrys (tu czerwony)
+	-- Opcjonalnie: h.FillColor = Color3.fromRGB(255, 200, 200)
+	h.Parent = character
+	return h
 end
 
-local function onPlayerAdded(player)
-    player.CharacterAdded:Connect(function(char)
-        highlightCharacter(char)
-    end)
-    if player.Character then
-        highlightCharacter(player.Character)
-    end
+local function addHighlight(player)
+	if not player or player == User then return end
+	if highlights[player] then return end
+	local char = player.Character
+	if not char then return end
+	local h = createHighlightForCharacter(char)
+	if h then highlights[player] = h end
 end
 
-for _, p in ipairs(Players:GetPlayers()) do
-    if p ~= Players.LocalPlayer then
-        onPlayerAdded(p)
-    end
+local function removeHighlight(player)
+	local h = highlights[player]
+	if h and h.Parent then h:Destroy() end
+	highlights[player] = nil
 end
 
-Players.PlayerAdded:Connect(onPlayerAdded)
+local function updatePlayerHighlight(player)
+	if enabled then
+		addHighlight(player)
+	else
+		removeHighlight(player)
+	end
+end
+
+-- Kiedy dołącza nowy gracz
+Players.PlayerAdded:Connect(function(player)
+	-- gdy pojawi się character, zaktualizuj highlight (jeśli włączone)
+	player.CharacterAdded:Connect(function()
+		-- krótka pauza, żeby character się zainicjalizował
+		wait(0.05)
+		updatePlayerHighlight(player)
+	end)
+end)
+
+-- Inicjalizacja dla już obecnych graczy
+for _, p in pairs(Players:GetPlayers()) do
+	if p ~= User then
+		-- podłącz CharacterAdded już teraz
+		p.CharacterAdded:Connect(function()
+			wait(0.05)
+			updatePlayerHighlight(p)
+		end)
+		-- jeśli mają character teraz, spróbuj dodać highlight
+		if p.Character then
+			updatePlayerHighlight(p)
+		end
+	end
+end
+
+-- Jeśli postać gracza (target) znika/reapear, usuń highlight (porządki)
+Players.PlayerRemoving:Connect(function(player)
+	removeHighlight(player)
+end)
+
+-- Przełącznik klawisza H
+UIS.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.KeyCode == Enum.KeyCode.H then
+		enabled = not enabled
+		for _, p in pairs(Players:GetPlayers()) do
+			if p ~= User then
+				updatePlayerHighlight(p)
+			end
+		end
+		-- powiadomienie na ekranie (tylko w Twojej grze)
+		pcall(function()
+			StarterGui:SetCore("SendNotification", {
+				Title = "ESP";
+				Text = enabled and "Włączone" or "Wyłączone";
+				Duration = 2;
+			})
+		end)
+	end
+end)
