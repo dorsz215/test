@@ -1,0 +1,33 @@
+-- Wstaw do StarterPlayerScripts
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local function highlightCharacter(character)
+    -- sprawdz czy już nie ma highlightu
+    if character:FindFirstChild("ESPHighlight") then return end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESPHighlight"
+    highlight.FillColor = Color3.fromRGB(0, 255, 0) -- zielony
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.FillTransparency = 0.5
+    highlight.Adornee = character
+    highlight.Parent = character
+end
+
+local function onPlayerAdded(player)
+    player.CharacterAdded:Connect(function(char)
+        highlightCharacter(char)
+    end)
+    if player.Character then
+        highlightCharacter(player.Character)
+    end
+end
+
+for _, p in ipairs(Players:GetPlayers()) do
+    if p ~= Players.LocalPlayer then
+        onPlayerAdded(p)
+    end
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
